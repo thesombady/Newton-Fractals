@@ -1,10 +1,8 @@
 import scipy
 import sympy
 import math
-import cmath
 import matplotlib.pyplot as plt
 import numpy as np
-import numdifftools
 
 
 class fractal2d:
@@ -21,26 +19,14 @@ class fractal2d:
                 self.epsilon=epsilon
                 self.delta=delta
                 self.iterations=iterations
+                self.zeros=np.array([[ ]])
         if div==None:
             self.function=function
             self.div=self.numerical_div
             self.epsilon=epsilon
             self.delta=delta
             self.iterations=iterations
-    """
-    def partialdiv(self,x,y):
-        #Returns a jacobian matrix
-        J = numdifftools.Jacobian(lambda z: self.function(z.reshape(x.shape), y).ravel())
-        return J(x.ravel()).reshape(x.shape)
-    """
-    def divf(self,x,y):
-        """This returns the jacobian matrix """
-        x,y=sympy.symbols('x y')
-        a=sympy.diff(self.function(x,y)[0],x)
-        b=sympy.diff(self.function(x,y)[0],y)
-        c=sympy.diff(self.function(x,y)[1],x)
-        d=sympy.diff(self.function(x,y)[1],y)
-        return np.array([[a,b],[c,d]]) 
+            self.zeros=np.array([[ ]])
     
     def numerical_div(self,guess):
         """This will return a numerical derivision of the self.function at a point 'guess'.
@@ -71,34 +57,70 @@ class fractal2d:
                     return guess,i
             else:
                 return None,self.iterations#It didn't converge
-    
+ 
     def simple_newtonmethod(self,guess):
         if not isinstance(guess,(tuple,list,np.array)):
-            raise TypeError("The input is not of correct type")
+            raise TypeError("This is not of correct type")
         if np.linalg.det(self.div(guess[0],guess[1]))==0:
             return None, self.iterations
-        Jacobian_inverse = np.linalg.inv(self.div(guess[0],guess[1]))
-	    for i in range(self.iterations):
-            try:
-				guess = np.matmul(-Jacobian_inverse,self.function(guess[0],guess[1]) + guess
-				if np.linalg.norm(self.function(guess)) < self.epsilon:
-					return guess, i
-            except:
-                return None, self.iterations
-        return None, self.iterations
+        try:
+            jacobian_inverse=np.linalg.inv(self.div(guess[0],guess[1]))
+            for i in range(self.iterations):
+                guess=guess+np.matmul(-jacobian_inverse,self.function(guess[0],guess[1]))
+                if np.linalg.norm(self.function(guess[0],guess[1]))<self.delta:
+                    return guess, i
+        except:
+            return None
+    
+    def find_zeros(self,guess,which_newton=0):
+        value,i=self.newtonmethod(guess)
+        tolerance=1e-5
+        if value==None:
+            return -1,i#This is because the value didn't converge
+        if self.zeros.size==0:
+            self.zeros=np.array(value)
+        t=(self.zeros-value)**2
+        distance=t[:,0] + t[:,1]
+        if (distance-tolerance).any():
+            return np.where(distance<tolerance)[0][0] , i
+        else:
+            return np.reshape(np.append(self.zeros,value,value),(-1,2))#This line adds the zeros
+    
+    def call_find_zeros(self,x,y,simple=False):
+        """This calls for the function 'find_zeros'"""
+        return (self.find_zeros((x,y),simple))
 
+    def plot(self,N,a,b,c,d,which_newton=None):
+        if which_newton==None:
+            self.newton=self.newtonmethod
+        elif which_newton==1:
+            self.newton=self.simple_newtonmethod
+        else:
+            self.newton=self.newton
+        """
+        Now just make a plot function with newton() instead of any function, this is just so that the thing cheacks out.
+        """
+        X,Y=np.meshgrid(np.linspace(a,b,N),np.linspace(c,d,N))
+        Z=self.newton(X,Y)
+        cs=plt.contour(X,Y,Z,np.logspace(0,3.5,7,base=10),cmap='gray')
+        rosen=lambda x:Z(x[0],x[1])
+        solution,iterates=scipy.optimize.fmin_powell(rosen,x0=np.array([0,-0.7]),retall=True)
+        x,y=zip(*iterates)
+        plt.plot(x,y,'ko') # plot black bullets
+        plt.plot(x,y,'k:',linewidth=1) # plot black dotted lines
+        plt.title("Newton Fractals")
+        plt.clabel(cs)
 
-
-
-
-
-
+    def number(self,guess):
+        if not isinstance(guess,(tuple,list,np.array)):
+            raise TypeError("Iterations method cannot be made!")
+        value, i=self.simple_newtonmethod(guess)
+        if isinstance(value,np.array):
+            return value,i
+        else:
+            return self.newtonmethod(guess)
 
 def f(x,y):
-    return np.array([x**3-3*x*y**2-1,3*x**2*y-y**3])
+    return np.array([[x**3-3*x*y**2-1],[3*x**2*y-y**3]])
 
-
-"""
-Partial derivitive might have to be worked on again
-"""
-
+print(fractal2d(f).plot)
