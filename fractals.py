@@ -20,6 +20,7 @@ class fractal2d:
         self.epsilon=epsilon
         self.delta=delta
         self.iterations=iterations
+        self.zeros=np.array([[]])
     
     def partialdiv(self,x,y):
         if not isinstance(x,(float,int)) and isinstance(y,(int,float)):
@@ -29,7 +30,7 @@ class fractal2d:
 
 
     def newtonmethod(self,guess):
-        if not isinstance(guess,(list,tuple,np.array)):
+        if not isinstance(guess,(list,tuple,np.ndarray,np.generic)):
             raise TypeError("The input in newtonmethod isn't of correct type!")
         guess=np.array(guess)
         for i in range(self.iterations):
@@ -58,30 +59,50 @@ class fractal2d:
         
 
     def find_zeros(self,guess,which_newton=None):
-        if not isinstance(guess,(list,tuple,np.array)):
+        if not isinstance(guess,(list,tuple,np.ndarray,np.generic)):
             raise TypeError("The input is of wrong type!")
         if which_newton==False:
             self.newton=self.simple_newtonmethod
         else:
             self.newton=self.newtonmethod
         guess=np.array(guess)
-        value,i=self.newton(guess[0],guess[1])
-        if value==None:#From either newton or simple newton, means no convergence
+        value,i=self.newton(guess)
+        if value is None:#From either newton or simple newton, means no convergence
             return -1,i #i being the number of iterations
-        elif value!=None:
-            scipy.zeros
-            return
+        
+        if self.zeros.size == 0: # If not root existed before this, add this value, "value" as a root
+            self.zeros = np.array([value])
 
-    def plot(self,N,a,b,c,d,which_newton=0):
-        if which_newton==0:
-            self.newton=self.newtonmethod
-        elif which_newton==True:
+        t = (self.zeros-value)**2
+        dist = t[:,0] + t[:,1]
+        if (dist<self.delta).any() : #zero already exists
+            return np.where(dist<self.delta)[0][0] , i
+        else:  # value dose not exist yet
+            self.zeros=np.reshape(np.append(self.zeros,value),(-1,2)) #add value to zeros
+            return self.zeros.size/2-1 , i
+
+    def callfind_zeros(self,x,y,which_newton=None):
+        if which_newton==False:
             self.newton=self.simple_newtonmethod
         else:
             self.newton=self.newtonmethod
-        pass
+        guess=(x,y)
+        return self.find_zeros(guess,which_newton)
+
+
+    def plot(self,N,a,b,c,d,which_newton=None):
+        if which_newton==False:
+            self.newton=self.simple_newtonmethod
+        else:
+            self.newton=self.newtonmethod
+        X,Y=np.meshgrid(np.linspace(a,b,N),np.linspace(c,d,N),indexing='ij')
+        v_zeroes=np.vectorize(self.callfind_zeros)
+        A,B=v_zeroes(X,Y,which_newton)
+        return A,B
+
 
 def f(x,y):
     return np.array([x**3-3*x*y**2-1,3*x**2*y-y**3])
 print(fractal2d(f).partialdiv(0,0))#Print the partial derivitive of f at point (0,0)
 print(fractal2d(f).newtonmethod((20,10)))#Prints either a convering or divering number
+print(fractal2d(f).plot(100,-10,10,-10,10))
