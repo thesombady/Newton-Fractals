@@ -25,7 +25,7 @@ class fractal2d:
     def partialdiv(self,x,y):
         if not isinstance(x,(float,int)) and isinstance(y,(int,float)):
             raise TypeError("the input is not of correct type in partialdiv")
-        Jacobian_matrix=(1/self.epsilon)*np.array([self.function(x+self.epsilon,y)-self.function(x,y),self.function(x,y+self.epsilon)-self.function(x,y)])
+        Jacobian_matrix=(1/self.epsilon)*np.array([self.function(x+self.epsilon,y)-self.function(x,y),self.function(x,y+self.epsilon)-self.function(x,y)]).T
         return Jacobian_matrix
 
 
@@ -40,7 +40,7 @@ class fractal2d:
             guess=guess-np.matmul(np.linalg.inv(self.derivitive(guess[0],guess[1])),self.function(guess[0],guess[1]))
             if abs(xy[0]-guess[0])<self.epsilon and abs(xy[1]-guess[1])<self.epsilon:
                 return guess, i#Converge
-        return None,self.iterations #Didn't converge, but not necissary diverged.
+        return None,self.iterations #Didn't converge, but not necissary diverged. Might have needed more repititions/iterations
 
     def simple_newtonmethod(self,guess):
         if not isinstance(guess,(tuple,list,np.array)):
@@ -55,7 +55,7 @@ class fractal2d:
             guess=guess-np.matmul(Jacobian_inv,self.function(guess[0],guess[1]))
             if abs(xy[0]-guess[0])<self.epsilon and abs(xy[1]-guess[1])<self.epsilon:
                 return guess, i#Yay converged.
-        return None,self.iterations
+        return None,self.iterations#Didn't converge but not neccissary diverged.
         
 
     def find_zeros(self,guess,which_newton=None):
@@ -97,7 +97,22 @@ class fractal2d:
             self.newton=self.newtonmethod
         X,Y=np.meshgrid(np.linspace(a,b,N),np.linspace(c,d,N),indexing='ij')
         v_zeroes=np.vectorize(self.callfind_zeros)
-        A,B=v_zeroes(X,Y,which_newton)
+        A,B=v_zeroes(X,Y,which_newton)#B is the number of iterations
+        plt.pcolor(B,cmap='viridis')
+        plt.show()
+        return A,B
+    
+    def plot2(self,N,a,b,c,d,which_newton=None):
+        if which_newton==False:
+            self.newton=self.simple_newtonmethod
+        else:
+            self.newton=self.newtonmethod
+        X,Y=np.meshgrid(np.linspace(a,b,N),np.linspace(c,d,N),indexing='ij')
+        v_zeroes=np.vectorize(self.callfind_zeros)
+        A,B=v_zeroes(X,Y,which_newton)#B is the number of iterations
+        B = ((B-1)%10)/10
+        plt.pcolormesh(B,cmap='viridis')
+        plt.show()
         return A,B
 
 
@@ -105,4 +120,12 @@ def f(x,y):
     return np.array([x**3-3*x*y**2-1,3*x**2*y-y**3])
 print(fractal2d(f).partialdiv(0,0))#Print the partial derivitive of f at point (0,0)
 print(fractal2d(f).newtonmethod((20,10)))#Prints either a convering or divering number
-print(fractal2d(f).plot(100,-10,10,-10,10))
+#print(fractal2d(f).plot(100,-10,10,-10,10))
+#fractal2d(f).plot(200,-1,1,-1,1)
+def h(x,y):
+    return np.array([x**8-28*x**6*y**2+70*x**4*y**4+15*x**4-28*x**2*y**6-90*x**2*y**2+y**8+15*y**4-16,8*x**7*y-56*x**5*y**3+56*x**3*y**5+60*x**3*y-8*x*y**7-60*x*y**3])
+#fractal2d(h).plot(200,-1,1,-1,1)
+def g(x,y):
+    return np.array([x**3-3*x*y**2-2*x-2,3*x**2*y-y**2-2*y])
+
+fractal2d(h).plot(200,-10,10,-10,10)
