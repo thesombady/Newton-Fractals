@@ -4,66 +4,76 @@ import matplotlib.pyplot as plt
 import scipy
 
 class fractal2d:
-    def __init__(self,function,derivitive=None,epsilon=1e-8,delta=0.001,iterations=100):
-        if not callable(function):
+    """A class"""
+    def __init__(self,function,derivitive=None,epsilon=1e-8,delta=0.001,iterations=100):#Author: Andreas Evensen
+        """The intalization. Using input a two dimensional function if wanted it's derivate. Could also change the iterations, the tolerance and increment. """
+        if not callable(function):#If not the function you inputed is callable, do this
             raise KeyError("The function isn't Callable")
-        if derivitive!=None:
+        if derivitive!=None:#If we have an input in derivitive, we first test it, if not true, we assign the method partialdiv as the derivate
             if not callable(derivitive):
                 self.derivitive=self.partialdiv
                 print("The derivitive isn't Callable, using the partialdiv function instead.")
-        if derivitive==None:
+        if derivitive==None:#If no input was detected we assign the method partialdiv as self.derivitive
             self.function=function
             self.derivitive=self.partialdiv
-        else:
+        else:#If we have both input we just assign nem
             self.function=function
             self.derivitive=derivitive
+        #This will run anyway. Here we fix some values
         self.epsilon=epsilon
         self.delta=delta
         self.iterations=iterations
         self.zeros=np.array([[]])
     
-    def partialdiv(self,x,y):
+    def partialdiv(self,x,y):#Author: Kasper Lindqvist
+        """Using two input found in guess, to compute the partial derivitive:The jacobian matrix """
         if not isinstance(x,(float,int)) and isinstance(y,(int,float)):
             raise TypeError("the input is not of correct type in partialdiv")
         Jacobian_matrix=(1/self.epsilon)*np.array([self.function(x+self.epsilon,y)-self.function(x,y),self.function(x,y+self.epsilon)-self.function(x,y)])
-        return np.transpose(Jacobian_matrix)
+        return np.transpose(Jacobian_matrix)#The transpose is because of definition
 
 
-    def newtonmethod(self,guess):
-        if not isinstance(guess,(list,tuple,np.ndarray,np.generic)):
+    def newtonmethod(self,guess):#Author: Andreas Evensen
+        """Using a 2-d array, list or tuple as input, as a startpoint for the newton-ralphson Method """
+        if not isinstance(guess,(list,tuple,np.ndarray,np.generic)):#Cheacking the inputs-type
             raise TypeError("The input in newtonmethod isn't of correct type!")
-        guess=np.array(guess)
+        guess=np.array(guess)#Making the input as an array, being necessary as it can be a tuple or list.
         for i in range(self.iterations):
-            if np.linalg.det(self.derivitive(guess[0],guess[1]))==0:
+            if np.linalg.det(self.derivitive(guess[0],guess[1]))==0:#Cheacking if the determenant is zero, if so the inverse don't exist, which we use; Morveover if the determenant is zero it has no change to converge
                 return None,self.iterations#Diverge
             xy=guess
-            guess=guess-np.matmul(np.linalg.inv(self.derivitive(guess[0],guess[1])),self.function(guess[0],guess[1]))
-            if abs(xy[0]-guess[0])<self.epsilon and abs(xy[1]-guess[1])<self.epsilon:
+            guess=guess-np.matmul(np.linalg.inv(self.derivitive(guess[0],guess[1])),self.function(guess[0],guess[1]))#could implement a sigma(self.delta) to improve solution,but would slow calculations down.
+            if abs(xy[0]-guess[0])<self.epsilon and abs(xy[1]-guess[1])<self.epsilon:#Testing if it has converged underneath our epsilon
                 return guess, i#Converge
         return None,self.iterations #Didn't converge, but not necissary diverged. Might have needed more repititions/iterations
 
-    def simple_newtonmethod(self,guess):
-        if not isinstance(guess,(tuple,list,np.ndarray,np.generic)):
+    def simple_newtonmethod(self,guess):#Author: Zebastian
+        """Using a 2-darray, list or tuple as input for the simple newton-ralphson Method.
+        This method has jacobian matrix calculated only once and using that value throughout. """
+        if not isinstance(guess,(tuple,list,np.ndarray,np.generic)):#Checking if the input is of correct type
             raise TypeError("The input is of the wrong type in simple_newtonmethod!")
-        guess=np.array(guess)
+        guess=np.array(guess)#Making the input to a 2-d array
         Jacobian=self.derivitive(guess[0],guess[1])#Just the jacobian_matrix at point (guess)
-        if np.linalg.det(Jacobian)==0:
+        if np.linalg.det(Jacobian)==0:#This is outside the while loop because it's only has to be computed once
             return None, self.iterations#Diverges
         Jacobian_inv=np.linalg.inv(Jacobian)
-        for i in range(self.iterations):
+        i=0
+        while i<self.iterations:#Using a while loop as a for loop to indicate that both works just fine
             xy=guess
             guess=guess-np.matmul(Jacobian_inv,self.function(guess[0],guess[1]))
-            if abs(guess).all()>(1/self.epsilon):
+            if abs(guess).any()>(1/(self.epsilon)):
                 return None,self.iterations
             if abs(xy[0]-guess[0])<self.epsilon and abs(xy[1]-guess[1])<self.epsilon:
                 return guess, i#Yay converged.
+            i+=1
         return None,self.iterations#Didn't converge but not neccissary diverged.
         
 
-    def find_zeros(self,guess,which_newton=None):
-        if not isinstance(guess,(list,tuple,np.ndarray,np.generic)):
+    def find_zeros(self,guess,which_newton=None):#Author: Colab-Andreas Evensen & Kasper Lindqvist
+        """Method that takes two inputs, guess (being a list, tuple or 2-d array) and which_newton which can be either False or something. """
+        if not isinstance(guess,(list,tuple,np.ndarray,np.generic)):#Cheacking the input
             raise TypeError("The input is of wrong type!")
-        if which_newton==False:
+        if which_newton==False:#Determining which newton-ralphson method to use
             self.newton=self.simple_newtonmethod
         else:
             self.newton=self.newtonmethod
@@ -83,24 +93,27 @@ class fractal2d:
             self.zeros=np.reshape(np.append(self.zeros,value),(-1,2)) #add value to zeros
             return self.zeros.size/2-1 , i
 
-    def callfind_zeros(self,x,y,which_newton=None):
+    def callfind_zeros(self,x,y,which_newton=None):#Author: Colab-Kasper Lindqvist & Andreas Evensen
         guess=(x,y)
         return self.find_zeros(guess,which_newton)
 
-    def plot(self,N,a,b,c,d,which_newton=None):
-        X,Y=np.meshgrid(np.linspace(a,b,N),np.linspace(c,d,N),indexing='ij')
-        v_zeroes=np.vectorize(self.callfind_zeros)
-        A,B=v_zeroes(X,Y,which_newton)#B is the number of iterations
+    def plot(self,N,a,b,c,d,which_newton=None):#Author: Ansgar
+        X,Y=np.meshgrid(np.linspace(a,b,N),np.linspace(c,d,N),indexing='ij')#This is standard format for meshgrid
+        vectorized=scipy.vectorize(self.callfind_zeros)#This is done for ambigious values, this fixes it.
+        A,B=vectorized(X,Y,which_newton)#B is the number of iterations
         plt.pcolor(B,cmap='viridis')
+        plt.colorbar()
         plt.show()
         return A,B
+
     
-    def plot2(self,N,a,b,c,d,which_newton=None):
+    def plot2(self,N,a,b,c,d,which_newton=None):#Author: Ansgar
+        """Plot function, taking six inputs. The resolution, x limits, y limits and which newton-ralphson method to use; Either False or something """
         X,Y=np.meshgrid(np.linspace(a,b,N),np.linspace(c,d,N),indexing='ij')
-        v_zeroes=np.vectorize(self.callfind_zeros)
-        A,B=v_zeroes(X,Y,which_newton)#B is the number of iterations
-        #B = ((B-1)%10)/10
+        vectorized=scipy.vectorize(self.callfind_zeros)#This is done for ambigious values, this fixes it.
+        A,B=vectorized(X,Y,which_newton)#B is the number of iterations
         plt.pcolormesh(B,cmap='viridis')
+        plt.colorbar()
         plt.show()
         return A,B
 
@@ -118,4 +131,4 @@ def g(x,y):
     return np.array([x**3-3*x*y**2-2*x-2,3*x**2*y-y**3-2*y])
 
 #fractal2d(h).plot2(1000,-10,10,-10,10)
-fractal2d(h).plot2(100,-10,10,-10,10)
+fractal2d(f).plot2(10,-10,10,-10,10,True)
